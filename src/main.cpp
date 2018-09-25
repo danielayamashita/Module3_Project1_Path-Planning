@@ -15,8 +15,9 @@
 #define ENABLE_ALGORITHM
 #define PRINT_VARS2
 //#define PRINT_VARS3
-#define MIN_SPACE_BACK 40
-#define MIN_SPACE_FRONT 30
+#define MIN_SPACE_BACK 25
+#define MIN_SPACE_FRONT 25
+#define PRINT_VARS4
 using namespace std;
 
 // for convenience
@@ -209,6 +210,8 @@ int main() {
   }
   // Target Lane
   int lane = 1;
+
+
   // Have a reference velocity to target
   double ref_vel = 0.0; //mph
 
@@ -260,6 +263,7 @@ int main() {
 			}
 
 			bool too_close = false;
+			
 			double check_speed;
 			//find ref_v to use
 			for(int i = 0; i < sensor_fusion.size(); i++)
@@ -282,6 +286,12 @@ int main() {
 					{
 						//ref_vel = 29.5;
 						too_close = true;
+						/*
+						if ((check_car_s - car_s) < 10)
+						{
+							too_close_follow = true;
+						}
+						*/
 					}
 				}
 			}
@@ -289,13 +299,20 @@ int main() {
 			if (too_close)
 			{
 				//Reduce velocity
-				ref_vel -= .224;
-				std::cout << "ref_vel: " << ref_vel <<endl;
-				std::cout << "check_speed: " << check_speed <<endl;
+				
+				
+				
+				//std::cout << "ref_vel: " << ref_vel <<endl;
+				//std::cout << "check_speed: " << check_speed <<endl;
 				//check if there is enough space to change the line
 				#ifdef ENABLE_ALGORITHM
 					//On the left
-					bool bo_Turn = false;
+					bool bo_Turn_Left= true;
+					bool bo_Turn_Right= true;
+					double min_left_front = 9999;
+					double min_right_front = 9999;
+					double max_left_back = -9999;
+					double max_right_back = -9999;
 					vector<double> vector_CheckCarLeftS;
 					vector<double> vector_CheckCarRightS;
 					#ifdef PRINT_VARS3
@@ -304,107 +321,157 @@ int main() {
 					for(int i = 0; i < sensor_fusion.size(); i++)
 					{
 						float d = sensor_fusion[i][6];
-
-						
-							
 							//Look at the left side
-							if ((d < (2+4*(lane-1)+2) && d > (2+4*(lane-1)-2)) && lane > 0)
+							if (d < (2+4*(lane-1)+2) && d > (2+4*(lane-1)-2)) 
 							{
-								bo_Turn = true;
-								//Estimate space
-								double vx = sensor_fusion[i][3];
-								double vy = sensor_fusion[i][4];
-								double check_speed = sqrt(vx*vx + vy*vy);
-								double check_car_left_s = sensor_fusion[i][5];
-								check_car_left_s += ((double)prev_size*.02*check_speed);
-								#ifdef PRINT_VARS3
-								std::cout << "minLeft: " << d <<endl;
-								#endif
-								vector_CheckCarLeftS.push_back(check_car_left_s);
+								if(lane > 0)
+								{
+									//Estimate space
+									double vx = sensor_fusion[i][3];
+									double vy = sensor_fusion[i][4];
+									double check_speed = sqrt(vx*vx + vy*vy);
+									double check_car_left_s = sensor_fusion[i][5];
+									check_car_left_s += ((double)prev_size*.02*check_speed);
+									#ifdef PRINT_VARS3
+									std::cout << "minLeft: " << d <<endl;
+									#endif
+
+									#ifdef PRINT_VARS4
+									std::cout << "LEFT dist:"<< (check_car_left_s - car_s)<<endl;
+									#endif
+									vector_CheckCarLeftS.push_back(check_car_left_s);
+
+									if ((check_car_left_s - car_s) > 0)
+									{
+										if (min_left_front > (check_car_left_s - car_s))
+										{
+											min_left_front = (check_car_left_s - car_s);
+										}
+										if ( abs(check_car_left_s - car_s) < MIN_SPACE_FRONT)
+										{
+											bo_Turn_Left = false;
+											#ifdef PRINT_VARS4
+											std::cout << "LEFT FALSE********: MIN_SPACE_FRONT"<<endl;
+											#endif
+										}
+									}
+									if ((check_car_left_s - car_s) < 0)
+									{
+										if (max_left_back < (check_car_left_s - car_s))
+										{
+											max_left_back = (check_car_left_s - car_s);
+										}
+										if(abs(check_car_left_s - car_s) < MIN_SPACE_BACK)
+										{
+											bo_Turn_Left = false;
+											#ifdef PRINT_VARS4
+											std::cout << "check_car_right_s"<<check_car_left_s<<endl;
+											std::cout << "LEFT FALSE********: MIN_SPACE_BACK"<<endl;
+											#endif
+										}
+									}
+								}
+								
+								
 							}
 
 							//Look at the right side
-							if ((d < (2+4*(lane+1)+2) && d > (2+4*(lane+1)-2)) && lane < MAX_NUM_LANES)
+							if ((d < (2+4*(lane+1)+2) && d > (2+4*(lane+1)-2)))
 							{
-								bo_Turn = true;
-								//Estimate space
-								double vx = sensor_fusion[i][3];
-								double vy = sensor_fusion[i][4];
-								double check_speed = sqrt(vx*vx + vy*vy);
-								double check_car_right_s = sensor_fusion[i][5];
-								check_car_right_s += ((double)prev_size*.02*check_speed);
-								#ifdef PRINT_VARS3
-								std::cout << "minRight: " << d <<endl;
-								#endif
-								vector_CheckCarRightS.push_back(check_car_right_s);
+								if (lane < MAX_NUM_LANES)
+								{
+									//Estimate space
+									double vx = sensor_fusion[i][3];
+									double vy = sensor_fusion[i][4];
+									double check_speed = sqrt(vx*vx + vy*vy);
+									double check_car_right_s = sensor_fusion[i][5];
+									check_car_right_s += ((double)prev_size*.02*check_speed);
+									#ifdef PRINT_VARS3
+									std::cout << "minRight: " << d <<endl;
+									#endif
+									vector_CheckCarRightS.push_back(check_car_right_s);
+									#ifdef PRINT_VARS4
+									std::cout << "check_car_right_s"<<check_car_right_s<<endl;
+									std::cout << "RIGHT dist:"<< (check_car_right_s - car_s)<<endl;
+									#endif
+									if ((check_car_right_s - car_s) > 0)
+									{
+										if (min_right_front > (check_car_right_s - car_s))
+										{
+											min_right_front = (check_car_right_s - car_s);
+										}
+										if ( abs(check_car_right_s - car_s) < MIN_SPACE_FRONT)
+										{
+											bo_Turn_Right = false;
+											#ifdef PRINT_VARS4
+											std::cout << "RIGHT FALSE********: MIN_SPACE_FRONT"<<endl;
+											#endif
+										}
+									}
+									if ((check_car_right_s - car_s) < 0)
+									{
+										if (max_right_back < (check_car_right_s - car_s))
+										{
+											max_right_back = (check_car_right_s - car_s);
+										}
+										if(abs(check_car_right_s - car_s) < MIN_SPACE_BACK)
+										{
+											bo_Turn_Right = false;
+											#ifdef PRINT_VARS4
+											std::cout << "RIGHT FALSE********: MIN_SPACE_BACK"<<endl;
+											#endif
+										}
+									}
+								}
 							}
-						
+							//Boundaries
+							if(lane == MAX_NUM_LANES)
+							{
+								bo_Turn_Right = false;
+							}
+							if(lane == 0)
+							{
+								bo_Turn_Left = false;
+							}
 					}
 
-					if (bo_Turn == true)
+					#ifdef PRINT_VARS4
+					std::cout << "bo_Turn_Right: "<<bo_Turn_Right<<" | bo_Turn_Left:"<<bo_Turn_Left<<endl;
+					#endif
+					if (bo_Turn_Right == true && bo_Turn_Left == false)
 					{
-						double minRight = -1;
-						double minLeft = -1;
-						
-						/*vector<double>::iterator double_minRight
-						vector<double>::iterator double_minLeft
-						minRight = *double_minRight;
-						minRight = *double_minLeft;
-						*/
-						
-						if (vector_CheckCarRightS.size() > 0 )
+						lane+=1; // Turn right
+					}
+					else if (bo_Turn_Right == false && bo_Turn_Left == true)
+					{
+						lane-=1; // Turn left
+					}
+					else if (bo_Turn_Right == true && bo_Turn_Left == true)
+					{
+						if ((min_right_front-max_right_back) > (min_left_front-max_left_back))
 						{
-							minRight= *min_element(begin(vector_CheckCarRightS),end(vector_CheckCarRightS));
+							lane+=1; // Turn right
 						}
-						if (vector_CheckCarLeftS.size() > 0)
+						else
 						{
-							minLeft =  *min_element(begin(vector_CheckCarLeftS),begin(vector_CheckCarLeftS));
+							lane-=1; // Turn left
 						}
+					}
+					
 
-						
-						
-						/*
-						//Boundaries 
-						if(lane == 0)
-						{
-							minLeft = 0;							
-						}
-						if(lane == MAX_NUM_LANES)
-						{
-							minRight = 0;
-						}
-						*/
-						#ifdef PRINT_VARS2
-						std::cout << "minRight: " << minRight - car_s<<endl;
-						std::cout << "minLeft: " << minLeft- car_s<<endl;
+					if (lane < 0)
+					{
+						lane = 0;
+						#ifdef PRINT_VARS4
+						std::cout << "BONDARY LANE 0 ###############"<<endl;
 						#endif
-						if (minRight > minLeft && lane < MAX_NUM_LANES)
-						{
-							#ifdef PRINT_VARS2
-							std::cout << "minRight > minLeft && lane < MAX_NUM_LANES " <<endl;
-							#endif
-							if ((minRight - car_s) > MIN_SPACE_FRONT || (minRight - car_s) < -MIN_SPACE_BACK)
-							{
-								#ifdef PRINT_VARS2
-								std::cout << "LANE++ " <<endl;
-								#endif
-								lane+=1;
-							}
-						}
-						else if (lane>0)
-						{
-							#ifdef PRINT_VARS2
-							std::cout << "lane>0 " <<endl;
-							#endif
-							if ((minLeft - car_s) > MIN_SPACE_FRONT || (minLeft - car_s) < -MIN_SPACE_BACK )
-							{
-								#ifdef PRINT_VARS2
-								std::cout << "LANE-- " <<endl;
-								#endif
-								lane-=1;
-							}
-						}
-						
+					}
+					if (lane > MAX_NUM_LANES)
+					{
+						lane = MAX_NUM_LANES;
+						#ifdef PRINT_VARS4
+						std::cout << "BONDARY LANE MAX_NUM_LANES ###############"<<endl;
+						#endif
 					}
 					
 				#endif
@@ -412,7 +479,9 @@ int main() {
 			}
 			else if (ref_vel < 49.5)  
 			{
+				
 				ref_vel +=.224;
+				
 			}
 
 			#ifdef PRINT_VARS
