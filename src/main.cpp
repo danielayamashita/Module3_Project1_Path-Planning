@@ -299,7 +299,7 @@ int main() {
 			if (too_close)
 			{
 				//Reduce velocity
-				
+				ref_vel -=.224;
 				
 				
 				//std::cout << "ref_vel: " << ref_vel <<endl;
